@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表板 - 领导工作流程管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="dashboard-page">
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h2>工作流程管理</h2>
+            </div>
+            <div class="nav-user">
+                <span>欢迎，{{ current_user.name }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline">退出</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>功能菜单</h3>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="calendar">
+                    <span class="nav-icon">📅</span>
+                    日历视图
+                </a>
+                <a href="#" class="nav-item" data-view="tasks">
+                    <span class="nav-icon">📋</span>
+                    任务列表
+                </a>
+                {% if current_user.role == 'manager' %}
+                <a href="#" class="nav-item" data-view="users">
+                    <span class="nav-icon">👥</span>
+                    用户管理
+                </a>
+
+                {% endif %}
+            </nav>
+        </div>
+        
+        <main class="main-content">
+            <!-- 日历视图 -->
+            <div id="calendar-view" class="view active">
+                <div class="view-header">
+                    <h2>日历视图</h2>
+                    {% if current_user.role == 'employee' %}
+                    <button class="btn btn-primary" onclick="openTaskModal()">添加任务</button>
+                    {% endif %}
+                </div>
+                
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button class="btn btn-outline" onclick="previousMonth()">‹</button>
+                        <h3 id="current-month">2024年1月</h3>
+                        <button class="btn btn-outline" onclick="nextMonth()">›</button>
+                    </div>
+                    
+                    <div class="calendar-grid">
+                        <div class="calendar-weekdays">
+                            <div>日</div>
+                            <div>一</div>
+                            <div>二</div>
+                            <div>三</div>
+                            <div>四</div>
+                            <div>五</div>
+                            <div>六</div>
+                        </div>
+                        <div id="calendar-days" class="calendar-days"></div>
+                    </div>
+                </div>
+            </div>
+            
+                         <!-- 任务列表视图 -->
+             <div id="tasks-view" class="view">
+                 <div class="view-header">
+                     <h2>任务列表</h2>
+                     <div class="view-actions">
+                         <div class="filter-group">
+                             <input type="date" id="start-date-filter" class="form-input" placeholder="开始日期">
+                             <input type="date" id="end-date-filter" class="form-input" placeholder="结束日期">
+                             <button class="btn btn-outline" onclick="filterTasks()">筛选</button>
+                             {% if current_user.role == 'manager' %}
+                             <button class="btn btn-primary" onclick="exportCSV()">导出CSV</button>
+                             {% endif %}
+                         </div>
+                         {% if current_user.role == 'employee' %}
+                         <button class="btn btn-primary" onclick="openTaskModal()">添加任务</button>
+                         {% endif %}
+                     </div>
+                 </div>
+                 
+                 <div id="tasks-list" class="tasks-list"></div>
+             </div>
+            
+            <!-- 用户管理视图（仅领导可见） -->
+            {% if current_user.role == 'manager' %}
+            <div id="users-view" class="view">
+                <div class="view-header">
+                    <h2>用户管理</h2>
+                </div>
+                
+                <div id="users-list" class="users-list"></div>
+            </div>
+            
+
+            {% endif %}
+        </main>
+    </div>
+    
+    <!-- 任务模态框 -->
+    <div id="task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">添加任务</h3>
+                <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+            </div>
+            <form id="task-form" class="modal-body">
+                <input type="hidden" id="task-id">
+                <div class="form-group">
+                    <label for="task-title">任务标题</label>
+                    <input type="text" id="task-title" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-description">任务描述</label>
+                    <textarea id="task-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="task-date">日期</label>
+                    <input type="date" id="task-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-priority">优先级</label>
+                    <select id="task-priority">
+                        <option value="low">低</option>
+                        <option value="medium" selected>中</option>
+                        <option value="high">高</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="task-status">状态</label>
+                    <select id="task-status">
+                        <option value="in_progress" selected>进行中</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeTaskModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 日程表模态框（管理员专用） -->
+    <div id="schedule-modal" class="modal">
+        <div class="modal-content schedule-modal-content">
+            <div id="schedule-modal-content">
+                <!-- 日程表内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html> 

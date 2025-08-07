@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全设置 - 领导工作流程管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="security-settings-page">
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h2>工作流程管理</h2>
+            </div>
+            <div class="nav-user">
+                <span>欢迎，{{ current_user.name }}</span>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回仪表板</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline">退出</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="settings-container">
+            <h2>安全设置</h2>
+            
+            <div class="settings-section">
+                <h3>联系信息</h3>
+                <form id="contact-form" class="settings-form">
+                    <div class="form-group">
+                        <label for="email">邮箱地址</label>
+                        <input type="email" id="email" name="email" class="form-input" 
+                               value="{{ current_user.email or '' }}" placeholder="请输入邮箱地址">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">手机号码</label>
+                        <input type="tel" id="phone" name="phone" class="form-input" 
+                               value="{{ current_user.phone or '' }}" placeholder="请输入手机号码">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">保存联系信息</button>
+                </form>
+            </div>
+            
+            <div class="settings-section">
+                <h3>账户信息</h3>
+                <div class="info-group">
+                    <label>用户名</label>
+                    <span>{{ current_user.username }}</span>
+                </div>
+                <div class="info-group">
+                    <label>姓名</label>
+                    <span>{{ current_user.name }}</span>
+                </div>
+                <div class="info-group">
+                    <label>角色</label>
+                    <span>{{ '管理员' if current_user.role == 'manager' else '员工' }}</span>
+                </div>
+                <div class="info-group">
+                    <label>注册时间</label>
+                    <span>{{ current_user.created_at.strftime('%Y-%m-%d %H:%M:%S') if current_user.created_at else '未知' }}</span>
+                </div>
+                <div class="info-group">
+                    <label>最后登录</label>
+                    <span>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else '从未登录' }}</span>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>受信任设备</h3>
+                <div id="trusted-devices-list">
+                    <p>正在加载设备列表...</p>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>安全提醒</h3>
+                <div class="alert alert-info">
+                    <ul>
+                        <li>请定期更改您的密码</li>
+                        <li>不要在公共场所登录系统</li>
+                        <li>及时更新您的联系信息</li>
+                        <li>如发现异常登录，请立即联系管理员</li>
+                        <li>定期检查和管理受信任设备</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 页面加载时获取受信任设备列表
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTrustedDevices();
+        });
+        
+        // 加载受信任设备列表
+        async function loadTrustedDevices() {
+            try {
+                const response = await fetch('/api/trusted-devices');
+                const devices = await response.json();
+                
+                const devicesList = document.getElementById('trusted-devices-list');
+                
+                if (devices.length === 0) {
+                    devicesList.innerHTML = '<p>暂无受信任设备</p>';
+                    return;
+                }
+                
+                let html = '<div class="devices-grid">';
+                devices.forEach(device => {
+                    html += `
+                        <div class="device-card">
+                            <div class="device-info">
+                                <h4>设备 ${device.id}</h4>
+                                <p><strong>IP地址:</strong> ${device.ip_address}</p>
+                                <p><strong>浏览器:</strong> ${device.user_agent}</p>
+                                <p><strong>最后使用:</strong> ${device.last_used || '未知'}</p>
+                                <p><strong>添加时间:</strong> ${device.created_at || '未知'}</p>
+                            </div>
+                            <button class="btn btn-danger" onclick="removeDevice(${device.id})">移除设备</button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                devicesList.innerHTML = html;
+            } catch (error) {
+                console.error('加载设备列表失败:', error);
+                document.getElementById('trusted-devices-list').innerHTML = '<p>加载失败，请重试</p>';
+            }
+        }
+        
+        // 移除受信任设备
+        async function removeDevice(deviceId) {
+            if (!confirm('确定要移除这个受信任设备吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/trusted-devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('设备已移除');
+                    loadTrustedDevices(); // 重新加载列表
+                } else {
+                    alert('移除失败：' + data.error);
+                }
+            } catch (error) {
+                console.error('移除设备失败:', error);
+                alert('移除失败，请重试');
+            }
+        }
+        
+        // 联系信息更新
+        document.getElementById('contact-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            
+            fetch('/api/update-contact-info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    phone: phone
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('联系信息更新成功！');
+                } else {
+                    alert('更新失败：' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('更新失败，请重试');
+            });
+        });
+    </script>
+</body>
+</html>
